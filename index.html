@@ -47,6 +47,8 @@
     const stopButton = document.getElementById("stopButton");
     const status = document.getElementById("status");
 
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxoC-VNL3sl-v3lfiFkmBK70FN70qR-OSgM_Z4PbIm5jC2GCsuWHhQ_kqoz9YXVdDiBIg/exec"; // <-- Paste here
+
     let isScanning = false;
 
     async function startScanner() {
@@ -58,25 +60,23 @@
             backCamera.id,
             { fps: 10, qrbox: { width: 220, height: 220 } },
             qrCodeMessage => {
-              status.textContent = "✅ QR Code Scanned: " + qrCodeMessage;
-              alert("Scanned: " + qrCodeMessage);
+              status.textContent = "✅ QR Scanned: " + qrCodeMessage;
+              sendToSheet(qrCodeMessage);
               html5QrCode.stop();
               startButton.disabled = false;
               stopButton.disabled = true;
             },
-            errorMessage => {
-              // console.log("Scanning...");
-            }
+            errorMessage => {}
           );
           status.textContent = "📷 Scanning for QR code...";
           startButton.disabled = true;
           stopButton.disabled = false;
           isScanning = true;
         } else {
-          status.textContent = "❌ No cameras found on this device.";
+          status.textContent = "❌ No camera found on this device.";
         }
       } catch (err) {
-        status.textContent = "⚠️ Camera permission denied or unavailable.";
+        status.textContent = "⚠️ Camera access denied.";
         console.error(err);
       }
     }
@@ -89,6 +89,22 @@
         startButton.disabled = false;
         stopButton.disabled = true;
       }
+    }
+
+    function sendToSheet(qrCodeMessage) {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ qrData: qrCodeMessage }),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(res => res.text())
+      .then(data => {
+        status.textContent = "✅ Data sent to sheet successfully!";
+      })
+      .catch(err => {
+        status.textContent = "❌ Failed to send data to Google Sheet.";
+        console.error(err);
+      });
     }
 
     startButton.addEventListener("click", startScanner);
