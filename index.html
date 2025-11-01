@@ -1,117 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 QR Code Inventory Scanner</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      text-align: center;
-      padding: 20px;
-    }
-    h2 { color: #222; }
-    #reader {
-      width: 280px;
-      margin: 20px auto;
-      border: 2px solid #007bff;
-      border-radius: 10px;
-      background: white;
-    }
-    button {
-      padding: 10px 16px;
-      font-size: 16px;
-      border: none;
-      border-radius: 6px;
-      margin: 6px;
-      color: white;
-      background-color: #007bff;
-    }
-    button:disabled {
-      background-color: #999;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📦 Inventory QR Scanner</title>
+<script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    text-align: center;
+    padding: 20px;
+  }
+  h2 { color: #222; }
+  #reader {
+    width: 300px;
+    margin: 20px auto;
+    border: 2px solid #007bff;
+    border-radius: 10px;
+    background: white;
+  }
+  button {
+    padding: 10px 16px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    margin: 6px;
+    color: white;
+    background-color: #007bff;
+  }
+  button:disabled { background-color: #999; }
+</style>
 </head>
 <body>
-  <h2>📦 QR Code Inventory Scanner</h2>
+  <h2>📦 Inventory QR Code Scanner</h2>
   <div id="reader"></div>
-  <p id="status">Click start to begin scanning.</p>
+  <p id="status">Click "Start Scanning" to begin.</p>
   <button id="startButton">Start Scanning</button>
   <button id="stopButton" disabled>Stop</button>
 
-  <script>
-    const html5QrCode = new Html5Qrcode("reader");
-    const startButton = document.getElementById("startButton");
-    const stopButton = document.getElementById("stopButton");
-    const status = document.getElementById("status");
+<script>
+const html5QrCode = new Html5Qrcode("reader");
+const startButton = document.getElementById("startButton");
+const stopButton = document.getElementById("stopButton");
+const status = document.getElementById("status");
 
-    // ✅ Replace with your correct deployed Google Apps Script Web App URL:
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZs18oHhoglSsUDYbX8Z0PXGGmgCu85ZC2x46nGGEiBHF84vWU2aKnjuO6US_mSXqzag/exec";
+// Replace this with your correct Apps Script Web App URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZs18oHhoglSsUDYbX8Z0PXGGmgCu85ZC2x46nGGEiBHF84vWU2aKnjuO6US_mSXqzag/exec";
 
-    let isScanning = false;
+let isScanning = false;
 
-    async function startScanner() {
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length) {
-          const backCamera = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
-          await html5QrCode.start(
-            backCamera.id,
-            { fps: 10, qrbox: { width: 220, height: 220 } },
-            qrCodeMessage => {
-              status.textContent = "✅ QR Scanned: " + qrCodeMessage;
-              sendToSheet(qrCodeMessage);
-              html5QrCode.stop();
-              startButton.disabled = false;
-              stopButton.disabled = true;
-            },
-            errorMessage => {}
-          );
-          status.textContent = "📷 Scanning for QR code...";
-          startButton.disabled = true;
-          stopButton.disabled = false;
-          isScanning = true;
-        } else {
-          status.textContent = "❌ No camera found on this device.";
-        }
-      } catch (err) {
-        status.textContent = "⚠️ Camera access denied or unavailable.";
-        console.error(err);
-      }
+async function startScanner() {
+  try {
+    const devices = await Html5Qrcode.getCameras();
+    if (!devices || devices.length === 0) {
+      status.textContent = "❌ No camera found.";
+      return;
     }
 
-    async function stopScanner() {
-      if (isScanning) {
-        await html5QrCode.stop();
-        isScanning = false;
-        status.textContent = "Scanner stopped.";
-        startButton.disabled = false;
-        stopButton.disabled = true;
-      }
-    }
+    // Prefer the back camera if available
+    const backCamera = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
 
-    // ✅ FIXED: You forgot quotation marks around the fetch URL
-    function sendToSheet(qrCodeMessage) {
-      fetch(https://script.google.com/macros/s/AKfycbxZs18oHhoglSsUDYbX8Z0PXGGmgCu85ZC2x46nGGEiBHF84vWU2aKnjuO6US_mSXqzag/exec, {
-        method: "POST",
-        body: JSON.stringify({ qrData: qrCodeMessage }),
-        headers: { "Content-Type": "application/json" }
-      })
-      .then(res => res.text())
-      .then(data => {
-        status.textContent = "✅ Data sent to Google Sheet successfully!";
-        console.log("Response:", data);
-      })
-      .catch(err => {
-        status.textContent = "❌ Failed to send data to Google Sheet.";
-        console.error("Error:", err);
-      });
-    }
+    await html5QrCode.start(
+      { deviceId: { exact: backCamera.id } },
+      { fps: 10, qrbox: { width: 230, height: 230 } },
+      (decodedText, decodedResult) => {
+        status.textContent = "✅ Scanned: " + decodedText;
+        sendToSheet(decodedText);
+        stopScanner();
+      },
+      (errorMessage) => { /* ignore scan errors */ }
+    );
 
-    startButton.addEventListener("click", startScanner);
-    stopButton.addEventListener("click", stopScanner);
-  </script>
+    status.textContent = "📷 Scanning for QR code...";
+    isScanning = true;
+    startButton.disabled = true;
+    stopButton.disabled = false;
+
+  } catch (err) {
+    console.error("Camera error:", err);
+    status.textContent = "⚠️ Camera access denied or unavailable.";
+  }
+}
+
+async function stopScanner() {
+  if (isScanning) {
+    await html5QrCode.stop();
+    isScanning = false;
+    status.textContent = "Scanner stopped.";
+    startButton.disabled = false;
+    stopButton.disabled = true;
+  }
+}
+
+function sendToSheet(qrData) {
+  fetch(GOOGLE_SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({ qrData }),
+    headers: { "Content-Type": "application/json" }
+  })
+  .then(res => res.text())
+  .then(data => {
+    console.log("Google Sheet response:", data);
+    status.textContent = "✅ Data sent successfully!";
+  })
+  .catch(err => {
+    console.error("Send error:", err);
+    status.textContent = "❌ Failed to send data to sheet.";
+  });
+}
+
+startButton.addEventListener("click", startScanner);
+stopButton.addEventListener("click", stopScanner);
+</script>
 </body>
 </html>
