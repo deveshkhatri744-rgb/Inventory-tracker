@@ -1,83 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📦 QR Code Inventory Scanner</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <title>📦 QR Code Sales Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f4f6f8;
       text-align: center;
+      background: #f4f6f8;
       padding: 20px;
     }
-    h2 { color: #222; }
+    h2 { color: #333; }
     #reader {
-      width: 280px;
+      width: 300px;
       margin: 20px auto;
       border: 2px solid #007bff;
       border-radius: 10px;
       background: white;
     }
-    button {
-      padding: 10px 16px;
+    #status {
+      margin-top: 15px;
       font-size: 16px;
-      border: none;
-      border-radius: 6px;
-      margin: 6px;
+      color: #007bff;
+    }
+    button {
+      background: #007bff;
       color: white;
-      background-color: #007bff;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 10px;
     }
     button:disabled {
-      background-color: #999;
+      background: #999;
     }
   </style>
 </head>
 <body>
-  <h2>📦 QR Code Inventory Scanner</h2>
+  <h2>📱 QR Code Inventory Scanner</h2>
   <div id="reader"></div>
-  <p id="status">Click start to begin scanning.</p>
-  <button id="startButton">Start Scanning</button>
-  <button id="stopButton" disabled>Stop</button>
+  <p id="status">Click Start to scan sales.</p>
+  <button id="startBtn">Start Scanning</button>
+  <button id="stopBtn" disabled>Stop</button>
 
   <script>
     const html5QrCode = new Html5Qrcode("reader");
-    const startButton = document.getElementById("startButton");
-    const stopButton = document.getElementById("stopButton");
     const status = document.getElementById("status");
-
-    // ✅ Replace with your correct deployed Google Apps Script Web App URL:
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz9a7Jl3RaPv0G2PmIFKOANs8VH9a1iN6e4ofCZuGaHCPLrj1GU0SFIUZiOlxRmb_npxQ/exec";
-
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
     let isScanning = false;
 
     async function startScanner() {
       try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length) {
-          const backCamera = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
-          await html5QrCode.start(
-            backCamera.id,
-            { fps: 10, qrbox: { width: 220, height: 220 } },
-            qrCodeMessage => {
-              status.textContent = "✅ QR Scanned: " + qrCodeMessage;
-              sendToSheet(qrCodeMessage);
-              html5QrCode.stop();
-              startButton.disabled = false;
-              stopButton.disabled = true;
-            },
-            errorMessage => {}
-          );
-          status.textContent = "📷 Scanning for QR code...";
-          startButton.disabled = true;
-          stopButton.disabled = false;
-          isScanning = true;
-        } else {
-          status.textContent = "❌ No camera found on this device.";
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras.length) {
+          status.textContent = "❌ No camera found.";
+          return;
         }
+        const backCam = cameras.find(c => /back|rear|environment/i.test(c.label)) || cameras[0];
+        await html5QrCode.start(
+          backCam.id,
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          qrMessage => {
+            status.textContent = "✅ Scanned: " + qrMessage;
+            recordSale(qrMessage);
+          }
+        );
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        status.textContent = "📷 Scanning... aim at QR code.";
+        isScanning = true;
       } catch (err) {
-        status.textContent = "⚠️ Camera access denied or unavailable.";
+        status.textContent = "⚠️ Camera access denied.";
         console.error(err);
       }
     }
@@ -85,36 +82,30 @@
     async function stopScanner() {
       if (isScanning) {
         await html5QrCode.stop();
-        isScanning = false;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
         status.textContent = "Scanner stopped.";
-        startButton.disabled = false;
-        stopButton.disabled = true;
+        isScanning = false;
       }
     }
 
-    // ✅ FIXED: You forgot quotation marks around the fetch URL
-    function sendToSheet(qrCodeMessage) {
-      fetch(https://script.google.com/macros/s/AKfycbz9a7Jl3RaPv0G2PmIFKOANs8VH9a1iN6e4ofCZuGaHCPLrj1GU0SFIUZiOlxRmb_npxQ/exec, {
-        method: "POST",
-        body: JSON.stringify({ qrData: qrCodeMessage }),
-        headers: { "Content-Type": "application/json" }
-      })
-      .then(res => res.text())
-      .then(data => {
-        status.textContent = "✅ Data sent to Google Sheet successfully!";
-        console.log("Response:", data);
-      })
-      .catch(err => {
-        status.textContent = "❌ Failed to send data to Google Sheet.";
-        console.error("Error:", err);
-      });
+    function recordSale(productID) {
+      google.script.run
+        .withSuccessHandler(msg => {
+          status.textContent = "✅ Sale recorded: " + productID;
+          setTimeout(() => {
+            status.textContent = "📷 Ready for next scan...";
+          }, 1000);
+        })
+        .withFailureHandler(err => {
+          status.textContent = "❌ Error recording sale.";
+          console.error(err);
+        })
+        .recordSale(productID);
     }
 
-    startButton.addEventListener("click", startScanner);
-    stopButton.addEventListener("click", stopScanner);
+    startBtn.addEventListener("click", startScanner);
+    stopBtn.addEventListener("click", stopScanner);
   </script>
 </body>
 </html>
-
-
-
