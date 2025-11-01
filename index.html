@@ -2,117 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>QR Inventory Scanner</title>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📦 Scan Product QR to Record Daily Sale</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
       padding: 20px;
-      background-color: #f8f9fa;
+      background: #f6f8fa;
     }
     #reader {
       width: 300px;
       margin: 0 auto;
-    }
-    #status {
-      margin-top: 20px;
-      font-size: 16px;
-      font-weight: bold;
-      color: #333;
-    }
-    button {
-      margin-top: 15px;
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      background-color: #007bff;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #0056b3;
+      border-radius: 12px;
+      overflow: hidden;
     }
   </style>
 </head>
 <body>
-  <h2>📦 QR Code Inventory Scanner</h2>
+  <h2>📦 Scan Product QR to Record Daily Sale</h2>
   <div id="reader"></div>
-  <p id="status">Waiting for scan...</p>
-  <button onclick="startScanner()">Start Scanning</button>
-  <button onclick="stopScanner()">Stop</button>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxoC-VNL3sl-v3lfiFkmBK70FN70qR-OSgM_Z4PbIm5jC2GCsuWHhQ_kqoz9YXVdDiBIg/exec"; // 🔹 Paste your Apps Script Web App URL here
-    let html5QrCode;
+    const html5QrCode = new Html5Qrcode("reader");
 
     function startScanner() {
-      const readerElement = document.getElementById("reader");
-      html5QrCode = new Html5Qrcode("reader");
-
-      Html5Qrcode.getCameras().then(cameras => {
-        if (cameras && cameras.length) {
-          // Try to find the back camera
-          let backCamera = cameras.find(cam =>
-            cam.label.toLowerCase().includes("back") ||
-            cam.label.toLowerCase().includes("rear")
-          );
-          let cameraId = backCamera ? backCamera.id : cameras[0].id;
-
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+          let backCamera = devices.find(device => /back|rear|environment/gi.test(device.label)) || devices[0];
           html5QrCode.start(
-            cameraId,
-            { fps: 10, qrbox: { width: 350, height: 350 } },
+            backCamera.id,
+            { fps: 10, qrbox: { width: 250, height: 250 } },
             qrCodeMessage => {
-              document.getElementById("status").innerText =
-                "✅ QR Scanned: " + qrCodeMessage;
-
-              // Prepare data
-              const data = {
-                scanned_at: new Date().toLocaleString(),
-                qr_data: qrCodeMessage
-              };
-
-              // Send data to Google Sheet
-              fetch(SCRIPT_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data)
-              })
-              .then(res => res.json())
-              .then(res => {
-                if (res.status === "success") {
-                  document.getElementById("status").innerText =
-                    "✅ Data updated in Google Sheet!";
-                } else {
-                  document.getElementById("status").innerText =
-                    "⚠️ Error: " + res.message;
-                }
-              })
-              .catch(err => {
-                document.getElementById("status").innerText =
-                  "❌ Network error: " + err.message;
-              });
-
-              html5QrCode.stop().then(() => {
-                console.log("Scanner stopped after scan");
-              });
+              alert("Scanned QR Code: " + qrCodeMessage);
+              html5QrCode.stop();
+            },
+            errorMessage => {
+              console.log("QR not detected yet");
             }
           );
         } else {
-          alert("No camera found on this device!");
+          alert("No camera found on this device.");
         }
-      }).catch(err => alert("Camera access error: " + err));
+      }).catch(err => {
+        console.error("Camera access error: ", err);
+      });
     }
 
-    function stopScanner() {
-      if (html5QrCode) {
-        html5QrCode.stop().then(() => {
-          document.getElementById("status").innerText = "Scanner stopped.";
-        });
-      }
-    }
+    startScanner();
   </script>
 </body>
 </html>
-
