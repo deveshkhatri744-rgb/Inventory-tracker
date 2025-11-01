@@ -3,99 +3,120 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QR Sale Scanner (Auto Daily Log)</title>
-<script src="https://unpkg.com/html5-qrcode"></script>
+<title>📦 QR Code Excel Logger</title>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   body {
     font-family: Arial, sans-serif;
     background: #f7f9fb;
-    margin: 0;
     text-align: center;
     padding: 20px;
   }
-  h2 { color: #222; }
   #reader {
     width: 320px;
-    height: 240px;
-    margin: 0 auto;
+    height: 260px;
+    margin: 20px auto;
     border: 2px solid #0078d7;
-    border-radius: 8px;
+    border-radius: 10px;
     background: white;
   }
   button {
     padding: 10px 20px;
-    margin-top: 10px;
+    margin: 10px;
     border: none;
-    background: #0078d7;
-    color: white;
     border-radius: 6px;
+    color: white;
     cursor: pointer;
   }
-  button:hover { background: #005fa3; }
-  #status {
-    margin-top: 15px;
-    font-size: 14px;
-    color: green;
-  }
+  #startBtn { background: #0078d7; }
+  #stopBtn { background: #ff4c4c; }
+  #downloadBtn { background: #28a745; display: none; }
+  #status { font-weight: bold; color: #0078d7; margin-top: 15px; }
 </style>
 </head>
 <body>
 
-<h2>📦 Scan Product QR to Record Daily Sale</h2>
+<h2>📦 QR Sale Scanner → Excel Export</h2>
 <div id="reader"></div>
-<p id="status">Waiting for scan...</p>
-<button onclick="startScanner()">Start Scanner</button>
+<p id="status">Click Start to scan QR codes.</p>
+<button id="startBtn">Start Scanner</button>
+<button id="stopBtn" disabled>Stop Scanner</button>
+<button id="downloadBtn">Download Excel</button>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxoC-VNL3sl-v3lfiFkmBK70FN70qR-OSgM_Z4PbIm5jC2GCsuWHhQ_kqoz9YXVdDiBIg/exec"; // Paste Apps Script URL
+let html5QrCode;
+let isScanning = false;
+let scannedData = [["Timestamp", "Product / QR Data"]]; // Excel header row
 
-function startScanner() {
-  const html5QrCode = new Html5Qrcode("reader");
+document.getElementById("startBtn").addEventListener("click", startScanner);
+document.getElementById("stopBtn").addEventListener("click", stopScanner);
+document.getElementById("downloadBtn").addEventListener("click", downloadExcel);
 
-  Html5Qrcode.getCameras().then(cameras => {
+async function startScanner() {
+  const status = document.getElementById("status");
+  html5QrCode = new Html5Qrcode("reader");
+  status.textContent = "📷 Initializing camera...";
+
+  try {
+    const cameras = await Html5Qrcode.getCameras();
     if (cameras && cameras.length) {
-      html5QrCode.start(
-        cameras[0].id,
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        qrCodeMessage => {
-          document.getElementById("status").innerText = "✅ QR Scanned Successfully!";
-          console.log("QR Data:", qrCodeMessage);
+      const backCam = cameras.find(cam => /back|rear|environment/i.test(cam.label)) || cameras[0];
+      await html5QrCode.start(
+        backCam.id,
+        { fps: 10, qrbox: { width: 260, height: 260 } },
+        qrMessage => {
+          const now = new Date().toLocaleString();
+          scannedData.push([now, qrMessage]);
+          status.textContent = `✅ Scanned: ${qrMessage}`;
+          console.log("Logged:", now, qrMessage);
 
-          // Prepare and send data to Google Sheet
-          const data = {
-            productName: "QR Product",
-            imageURL: qrCodeMessage,
-            qrData: qrCodeMessage
-          };
-
-          fetch(SCRIPT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-          })
-          .then(res => res.json())
-          .then(res => {
-            if (res.status === "success") {
-              document.getElementById("status").innerText =
-                "✅ Sale logged in " + res.sheet;
-            } else {
-              document.getElementById("status").innerText =
-                "❌ Error: " + res.message;
-            }
-            html5QrCode.stop(); // Stop after one scan
-          })
-          .catch(err => {
-            document.getElementById("status").innerText = "❌ Network error: " + err;
-            console.error(err);
-          });
+          // Pause for 2 seconds between scans
+          html5QrCode.pause();
+          setTimeout(() => {
+            html5QrCode.resume();
+            status.textContent = "📷 Ready for next scan...";
+          }, 1500);
         }
       );
+      isScanning = true;
+      document.getElementById("startBtn").disabled = true;
+      document.getElementById("stopBtn").disabled = false;
+      document.getElementById("downloadBtn").style.display = "none";
+      status.textContent = "📷 Point camera at a QR code.";
     } else {
-      alert("No camera found on this device!");
+      status.textContent = "❌ No camera found!";
     }
-  }).catch(err => alert("Camera access error: " + err));
+  } catch (err) {
+    console.error(err);
+    status.textContent = "⚠️ Camera access error.";
+  }
+}
+
+async function stopScanner() {
+  if (isScanning && html5QrCode) {
+    await html5QrCode.stop();
+    isScanning = false;
+    document.getElementById("status").textContent = "⏹️ Scanner stopped.";
+    document.getElementById("startBtn").disabled = false;
+    document.getElementById("stopBtn").disabled = true;
+    document.getElementById("downloadBtn").style.display = "inline-block";
+  }
+}
+
+function downloadExcel() {
+  const ws = XLSX.utils.aoa_to_sheet(scannedData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Sales Log");
+
+  const now = new Date();
+  const fileName = `Sales_Log_${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}.xlsx`;
+
+  XLSX.writeFile(wb, fileName);
+  document.getElementById("status").textContent = "✅ Excel file downloaded!";
 }
 </script>
 
 </body>
 </html>
+
