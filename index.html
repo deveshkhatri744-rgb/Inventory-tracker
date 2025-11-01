@@ -1,153 +1,234 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📦 QR Code Inventory Scanner (Offline Excel)</title>
-<script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #f7f9fb;
-    text-align: center;
-    padding: 20px;
-  }
-
-  h2 {
-    color: #333;
-  }
-
-  #reader {
-    width: 360px;
-    height: 360px;
-    margin: 20px auto;
-    border: 3px solid #007bff;
-    border-radius: 15px;
-    background: white;
-    box-shadow: 0 0 10px rgba(0,0,0,0.15);
-  }
-
-  #status {
-    margin-top: 10px;
-    color: #333;
-    font-size: 16px;
-    font-weight: 500;
-  }
-
-  button {
-    padding: 12px 20px;
-    font-size: 16px;
-    border: none;
-    border-radius: 8px;
-    margin: 8px;
-    color: white;
-    background-color: #007bff;
-    cursor: pointer;
-    transition: background 0.3s ease;
-  }
-
-  button:hover {
-    background-color: #0056b3;
-  }
-
-  button:disabled {
-    background-color: #999;
-  }
-
-  @media (max-width: 480px) {
-    #reader {
-      width: 280px;
-      height: 280px;
-    }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Sales Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .scanner-container {
+            padding: 20px;
+        }
+        
+        #reader {
+            border: 3px solid #667eea;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+            display: block;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+            display: block;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 2px solid #bee5eb;
+            display: block;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: #f8f9fa;
+            margin-top: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        .last-scan {
+            padding: 15px 20px;
+            font-size: 12px;
+            color: #6c757d;
+            word-break: break-all;
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Sales Scanner</h1>
+            <p>Scan QR codes to track product sales</p>
+        </div>
+        
+        <div class="scanner-container">
+            <div id="reader"></div>
+            <div id="status" class="status"></div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="scanCount">0</div>
+                <div class="stat-label">Total Scans</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="successCount">0</div>
+                <div class="stat-label">Successful</div>
+            </div>
+        </div>
+        
+        <div class="last-scan" id="lastScan">Ready to scan...</div>
+    </div>
 
-  <h2>📦 QR Code Inventory Scanner (Offline Excel)</h2>
-  <div id="reader"></div>
-  <p id="status">Click "Start Scanning" to begin.</p>
-
-  <button id="startButton">Start Scanning</button>
-  <button id="stopButton" disabled>Stop Scanning</button>
-  <button id="downloadButton">📥 Download Excel</button>
-
-<script>
-const html5QrCode = new Html5Qrcode("reader");
-const startButton = document.getElementById("startButton");
-const stopButton = document.getElementById("stopButton");
-const downloadButton = document.getElementById("downloadButton");
-const status = document.getElementById("status");
-
-let isScanning = false;
-let cameraId = null;
-let scannedData = []; // store all scans
-
-async function startScanner() {
-  try {
-    const cameras = await Html5Qrcode.getCameras();
-    if (!cameras || cameras.length === 0) {
-      status.textContent = "❌ No camera found on this device.";
-      return;
-    }
-
-    const backCamera = cameras.find(cam => /back|rear|environment/i.test(cam.label)) || cameras[0];
-    cameraId = backCamera.id;
-
-    await html5QrCode.start(
-      { deviceId: { exact: cameraId } },
-      { fps: 10, qrbox: { width: 320, height: 320 } },
-      (decodedText) => {
-        const timestamp = new Date().toLocaleString();
-        scannedData.push({ "Scanned Code": decodedText, "Time": timestamp });
-        status.textContent = `✅ Scanned: ${decodedText}`;
-      },
-      () => {}
-    );
-
-    status.textContent = "📷 Scanning... Align QR inside the box.";
-    isScanning = true;
-    startButton.disabled = true;
-    stopButton.disabled = false;
-
-  } catch (err) {
-    console.error("Camera error:", err);
-    status.textContent = "⚠️ Allow camera access in browser settings.";
-  }
-}
-
-async function stopScanner() {
-  if (isScanning) {
-    await html5QrCode.stop();
-    isScanning = false;
-    startButton.disabled = false;
-    stopButton.disabled = true;
-    status.textContent = "Scanner stopped.";
-  }
-}
-
-// Function to download data as Excel
-function downloadExcel() {
-  if (scannedData.length === 0) {
-    alert("No scanned data to export!");
-    return;
-  }
-
-  const worksheet = XLSX.utils.json_to_sheet(scannedData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Scanned Data");
-
-  const currentDate = new Date().toISOString().split("T")[0];
-  XLSX.writeFile(workbook, `QR_Scan_Report_${currentDate}.xlsx`);
-}
-
-startButton.addEventListener("click", async () => {
-  await startScanner();
-});
-
-stopButton.addEventListener("click", stopScanner);
-downloadButton.addEventListener("click", downloadExcel);
-</script>
+    <script>
+        // IMPORTANT: Replace this URL with your deployed Google Apps Script web app URL
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8S5aIkA7bPlczblQ9rmyyT60IWfxD2HIQSR6glLn0M0QMYw5XdozTODsrwxaQaLuBQQ/exec';
+        
+        let scanCount = 0;
+        let successCount = 0;
+        let isProcessing = false;
+        
+        const statusDiv = document.getElementById('status');
+        const scanCountEl = document.getElementById('scanCount');
+        const successCountEl = document.getElementById('successCount');
+        const lastScanEl = document.getElementById('lastScan');
+        
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        function updateStats() {
+            scanCountEl.textContent = scanCount;
+            successCountEl.textContent = successCount;
+        }
+        
+        async function onScanSuccess(decodedText, decodedResult) {
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            scanCount++;
+            updateStats();
+            
+            showStatus('Processing scan...', 'info');
+            lastScanEl.textContent = `Last scan: ${decodedText.substring(0, 50)}...`;
+            
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=recordSale&url=${encodeURIComponent(decodedText)}`);
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    successCount++;
+                    updateStats();
+                    showStatus('✓ Sale recorded successfully!', 'success');
+                } else {
+                    showStatus('⚠ Error: ' + (result.message || 'Failed to record'), 'error');
+                }
+            } catch (error) {
+                console.error('Error recording sale:', error);
+                showStatus('⚠ Network error. Please check connection.', 'error');
+            }
+            
+            // Reset for next scan after 1 second
+            setTimeout(() => {
+                isProcessing = false;
+            }, 1000);
+        }
+        
+        function onScanFailure(error) {
+            // Silent - normal behavior when no QR code is detected
+        }
+        
+        // Initialize QR Code Scanner
+        const html5QrCode = new Html5Qrcode("reader");
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+        
+        // Start scanning with rear camera
+        html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess,
+            onScanFailure
+        ).catch(err => {
+            showStatus('Camera access denied or not available', 'error');
+            console.error('Unable to start scanning:', err);
+        });
+    </script>
 </body>
 </html>
