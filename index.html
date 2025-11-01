@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory QR Sale Scanner</title>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #f5f5f5;
+  margin: 0;
+  padding: 20px;
+}
+#reader {
+  width: 320px;
+  margin: 20px auto;
+}
+#status {
+  background: #0078d7;
+  color: white;
+  padding: 10px;
+  border-radius: 6px;
+  display: inline-block;
+}
+</style>
+</head>
+<body>
+
+<h2>📦 Scan Product QR to Record Sale</h2>
+<div id="reader"></div>
+<p id="status">Waiting for scan...</p>
+
+<script>
+const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxslAAHH5VbvDp6IW8GP61cxGxSqUNcpbjTnndgBIl92-_OxMvGaMMIXtTjndZ1f5WB_A/exec";
+
+function processQRCodeData(data) {
+  document.getElementById("status").innerText = "QR detected. Sending data...";
+
+  const imageUrl = data.trim();
+  // Extract SKU and Name if encoded as URL parameters (optional)
+  // Example QR data: https://drive.google.com/...#SKU=ABC123&Name=Dress
+  const url = new URL(imageUrl);
+  const sku = url.hash.includes("SKU=") ? url.hash.split("SKU=")[1].split("&")[0] : "UNKNOWN";
+  const productName = url.hash.includes("Name=") ? decodeURIComponent(url.hash.split("Name=")[1]) : "Unknown Product";
+
+  fetch(GOOGLE_APPS_SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({ sku, productName, imageUrl }),
+    headers: { "Content-Type": "application/json" }
+  })
+  .then(res => res.json())
+  .then(r => {
+    if (r.success) {
+      document.getElementById("status").innerText = "✅ Sale Recorded Successfully!";
+      setTimeout(() => { document.getElementById("status").innerText = "Waiting for next scan..."; }, 2000);
+    } else {
+      document.getElementById("status").innerText = "⚠️ Product not found!";
+    }
+  })
+  .catch(() => {
+    document.getElementById("status").innerText = "❌ Error connecting to Sheet";
+  });
+}
+
+function startScanner() {
+  const html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    (decodedText) => {
+      html5QrCode.stop().then(() => {
+        processQRCodeData(decodedText);
+        setTimeout(startScanner, 2500);
+      });
+    }
+  ).catch(err => {
+    document.getElementById("status").innerText = "Camera Error: " + err;
+  });
+}
+
+startScanner();
+</script>
+</body>
+</html>
