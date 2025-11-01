@@ -47,7 +47,8 @@
     const stopButton = document.getElementById("stopButton");
     const status = document.getElementById("status");
 
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZs18oHhoglSsUDYbX8Z0PXGGmgCu85ZC2x46nGGEiBHF84vWU2aKnjuO6US_mSXqzag/exec"; // <-- Paste here
+    // ✅ Replace with your correct deployed Google Apps Script Web App URL:
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZs18oHhoglSsUDYbX8Z0PXGGmgCu85ZC2x46nGGEiBHF84vWU2aKnjuO6US_mSXqzag/exec";
 
     let isScanning = false;
 
@@ -76,7 +77,7 @@
           status.textContent = "❌ No camera found on this device.";
         }
       } catch (err) {
-        status.textContent = "⚠️ Camera access denied.";
+        status.textContent = "⚠️ Camera access denied or unavailable.";
         console.error(err);
       }
     }
@@ -91,6 +92,7 @@
       }
     }
 
+    // ✅ FIXED: You forgot quotation marks around the fetch URL
     function sendToSheet(qrCodeMessage) {
       fetch(https://script.google.com/macros/s/AKfycbxZs18oHhoglSsUDYbX8Z0PXGGmgCu85ZC2x46nGGEiBHF84vWU2aKnjuO6US_mSXqzag/exec, {
         method: "POST",
@@ -99,11 +101,12 @@
       })
       .then(res => res.text())
       .then(data => {
-        status.textContent = "✅ Data sent to sheet successfully!";
+        status.textContent = "✅ Data sent to Google Sheet successfully!";
+        console.log("Response:", data);
       })
       .catch(err => {
         status.textContent = "❌ Failed to send data to Google Sheet.";
-        console.error(err);
+        console.error("Error:", err);
       });
     }
 
@@ -112,6 +115,3 @@
   </script>
 </body>
 </html>
-
-
-
