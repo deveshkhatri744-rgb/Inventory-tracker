@@ -103,7 +103,7 @@ async function stopScanner() {
 }
 
 function sendToSheet(qrData) {
-  fetch(GOOGLE_SCRIPT_URL, {
+  fetch(https://script.google.com/macros/s/AKfycbxZs18oHhoglSsUDYbX8Z0PXGGmgCu85ZC2x46nGGEiBHF84vWU2aKnjuO6US_mSXqzag/exec, {
     method: "POST",
     body: JSON.stringify({ qrData }),
     headers: { "Content-Type": "application/json" }
@@ -128,3 +128,4 @@ stopButton.addEventListener("click", stopScanner);
 </script>
 </body>
 </html>
+
