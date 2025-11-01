@@ -47,21 +47,29 @@
 <button onclick="startScanner()">Start Scanner</button>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxoC-VNL3sl-v3lfiFkmBK70FN70qR-OSgM_Z4PbIm5jC2GCsuWHhQ_kqoz9YXVdDiBIg/exec"; // Paste Apps Script URL
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxoC-VNL3sl-v3lfiFkmBK70FN70qR-OSgM_Z4PbIm5jC2GCsuWHhQ_kqoz9YXVdDiBIg/exec"; // Paste your Apps Script web app URL
 
 function startScanner() {
   const html5QrCode = new Html5Qrcode("reader");
 
   Html5Qrcode.getCameras().then(cameras => {
     if (cameras && cameras.length) {
+      // Find the back camera (usually has label "back" or "rear")
+      let backCamera = cameras.find(cam =>
+        cam.label.toLowerCase().includes("back") ||
+        cam.label.toLowerCase().includes("rear")
+      );
+
+      // Fallback to last camera if no match found
+      let cameraId = backCamera ? backCamera.id : cameras[cameras.length - 1].id;
+
       html5QrCode.start(
-        cameras[0].id,
+        cameraId,
         { fps: 10, qrbox: { width: 250, height: 250 } },
         qrCodeMessage => {
           document.getElementById("status").innerText = "✅ QR Scanned Successfully!";
           console.log("QR Data:", qrCodeMessage);
 
-          // Prepare and send data to Google Sheet
           const data = {
             productName: "QR Product",
             imageURL: qrCodeMessage,
@@ -82,7 +90,7 @@ function startScanner() {
               document.getElementById("status").innerText =
                 "❌ Error: " + res.message;
             }
-            html5QrCode.stop(); // Stop after one scan
+            html5QrCode.stop(); // stop scanning after one read
           })
           .catch(err => {
             document.getElementById("status").innerText = "❌ Network error: " + err;
@@ -99,3 +107,4 @@ function startScanner() {
 
 </body>
 </html>
+
