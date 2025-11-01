@@ -48,7 +48,7 @@
     const status = document.getElementById("status");
 
     // ✅ Replace with your correct deployed Google Apps Script Web App URL:
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZs18oHhoglSsUDYbX8Z0PXGGmgCu85ZC2x46nGGEiBHF84vWU2aKnjuO6US_mSXqzag/exec";
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz9a7Jl3RaPv0G2PmIFKOANs8VH9a1iN6e4ofCZuGaHCPLrj1GU0SFIUZiOlxRmb_npxQ/exec";
 
     let isScanning = false;
 
@@ -94,7 +94,7 @@
 
     // ✅ FIXED: You forgot quotation marks around the fetch URL
     function sendToSheet(qrCodeMessage) {
-      fetch(https://script.google.com/macros/s/AKfycbxZs18oHhoglSsUDYbX8Z0PXGGmgCu85ZC2x46nGGEiBHF84vWU2aKnjuO6US_mSXqzag/exec, {
+      fetch(https://script.google.com/macros/s/AKfycbz9a7Jl3RaPv0G2PmIFKOANs8VH9a1iN6e4ofCZuGaHCPLrj1GU0SFIUZiOlxRmb_npxQ/exec, {
         method: "POST",
         body: JSON.stringify({ qrData: qrCodeMessage }),
         headers: { "Content-Type": "application/json" }
@@ -115,5 +115,6 @@
   </script>
 </body>
 </html>
+
 
 
