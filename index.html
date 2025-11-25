@@ -182,9 +182,9 @@
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8S5aIkA7bPlczblQ9rmyyT60IWfxD2HIQSR6glLn0M0QMYw5XdozTODsrwxaQaLuBQQ/exec';
         
         // OPTIONAL: If your QR codes contain product IDs instead of URLs, set this to true
-        const CONVERT_TO_URL = false;
-        // Base URL for converting product IDs to full URLs (only used if CONVERT_TO_URL is true)
-        const BASE_URL = 'https://yourstore.com/product/';
+        const CONVERT_TO_URL = true;
+        // Not needed for Google Drive links - handled in convertToUrl function
+        const BASE_URL = '';
         
         let scanCount = 0;
         let successCount = 0;
@@ -236,8 +236,8 @@
                 return scannedData;
             }
             
-            // Convert product ID/number to full URL
-            return BASE_URL + scannedData;
+            // Convert Google Drive file ID to full URL
+            return `https://drive.google.com/file/d/${scannedData}/view?usp=drive_link`;
         }
         
         async function onScanSuccess(decodedText, decodedResult) {
