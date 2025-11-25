@@ -118,6 +118,32 @@
             color: #6c757d;
             word-break: break-all;
         }
+
+        .debug-box {
+            margin: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .debug-box h3 {
+            margin: 0 0 10px 0;
+            color: #856404;
+            font-size: 14px;
+        }
+
+        .debug-box pre {
+            margin: 5px 0;
+            padding: 8px;
+            background: white;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 11px;
+        }
     </style>
 </head>
 <body>
@@ -130,6 +156,11 @@
         <div class="scanner-container">
             <div id="reader"></div>
             <div id="status" class="status"></div>
+        </div>
+
+        <div class="debug-box">
+            <h3>🔍 Debug Information</h3>
+            <div id="debugInfo">Waiting for scan...</div>
         </div>
         
         <div class="stats">
@@ -150,6 +181,11 @@
         // IMPORTANT: Replace this URL with your deployed Google Apps Script web app URL
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8S5aIkA7bPlczblQ9rmyyT60IWfxD2HIQSR6glLn0M0QMYw5XdozTODsrwxaQaLuBQQ/exec';
         
+        // OPTIONAL: If your QR codes contain product IDs instead of URLs, set this to true
+        const CONVERT_TO_URL = false;
+        // Base URL for converting product IDs to full URLs (only used if CONVERT_TO_URL is true)
+        const BASE_URL = 'https://yourstore.com/product/';
+        
         let scanCount = 0;
         let successCount = 0;
         let isProcessing = false;
@@ -158,6 +194,7 @@
         const scanCountEl = document.getElementById('scanCount');
         const successCountEl = document.getElementById('successCount');
         const lastScanEl = document.getElementById('lastScan');
+        const debugInfoEl = document.getElementById('debugInfo');
         
         function showStatus(message, type) {
             statusDiv.textContent = message;
@@ -174,19 +211,64 @@
             scanCountEl.textContent = scanCount;
             successCountEl.textContent = successCount;
         }
+
+        function updateDebugInfo(decodedText) {
+            const isUrl = decodedText.startsWith('http://') || decodedText.startsWith('https://');
+            const isNumber = /^\d+$/.test(decodedText);
+            
+            debugInfoEl.innerHTML = `
+                <pre><strong>Scanned Data:</strong> ${decodedText}</pre>
+                <pre><strong>Type:</strong> ${typeof decodedText}</pre>
+                <pre><strong>Length:</strong> ${decodedText.length} characters</pre>
+                <pre><strong>Is URL:</strong> ${isUrl ? 'Yes ✓' : 'No ✗'}</pre>
+                <pre><strong>Is Number:</strong> ${isNumber ? 'Yes ✓' : 'No ✗'}</pre>
+            `;
+        }
+
+        function convertToUrl(scannedData) {
+            // If conversion is disabled, return as-is
+            if (!CONVERT_TO_URL) {
+                return scannedData;
+            }
+
+            // If it's already a URL, return as-is
+            if (scannedData.startsWith('http://') || scannedData.startsWith('https://')) {
+                return scannedData;
+            }
+            
+            // Convert product ID/number to full URL
+            return BASE_URL + scannedData;
+        }
         
         async function onScanSuccess(decodedText, decodedResult) {
             if (isProcessing) return;
             isProcessing = true;
             
+            // DEBUG: Log to console
+            console.log('=== QR CODE SCANNED ===');
+            console.log('Raw data:', decodedText);
+            console.log('Type:', typeof decodedText);
+            console.log('Length:', decodedText.length);
+            console.log('Is URL:', decodedText.startsWith('http'));
+            console.log('=====================');
+            
+            // Update debug display
+            updateDebugInfo(decodedText);
+            
             scanCount++;
             updateStats();
             
             showStatus('Processing scan...', 'info');
-            lastScanEl.textContent = `Last scan: ${decodedText.substring(0, 50)}...`;
+            lastScanEl.textContent = `Last scan: ${decodedText.substring(0, 50)}${decodedText.length > 50 ? '...' : ''}`;
+            
+            // Convert to URL if needed
+            const urlToSend = convertToUrl(decodedText);
+            
+            // Show what we're sending
+            console.log('Sending to sheet:', urlToSend);
             
             try {
-                const response = await fetch(`${SCRIPT_URL}?action=recordSale&url=${encodeURIComponent(decodedText)}`);
+                const response = await fetch(`${SCRIPT_URL}?action=recordSale&url=${encodeURIComponent(urlToSend)}`);
                 const result = await response.json();
                 
                 if (result.status === 'success') {
