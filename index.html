@@ -181,11 +181,6 @@
         // IMPORTANT: Replace this URL with your deployed Google Apps Script web app URL
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8S5aIkA7bPlczblQ9rmyyT60IWfxD2HIQSR6glLn0M0QMYw5XdozTODsrwxaQaLuBQQ/exec';
         
-        // OPTIONAL: If your QR codes contain product IDs instead of URLs, set this to true
-        const CONVERT_TO_URL = true;
-        // Not needed for Google Drive links - handled in convertToUrl function
-        const BASE_URL = '';
-        
         let scanCount = 0;
         let successCount = 0;
         let isProcessing = false;
@@ -212,64 +207,60 @@
             successCountEl.textContent = successCount;
         }
 
-        function updateDebugInfo(decodedText) {
-            const isUrl = decodedText.startsWith('http://') || decodedText.startsWith('https://');
-            const isNumber = /^\d+$/.test(decodedText);
+        function updateDebugInfo(scannedData, convertedUrl) {
+            const isUrl = scannedData.startsWith('http://') || scannedData.startsWith('https://');
+            const isNumber = /^\d+$/.test(scannedData);
             
             debugInfoEl.innerHTML = `
-                <pre><strong>Scanned Data:</strong> ${decodedText}</pre>
-                <pre><strong>Type:</strong> ${typeof decodedText}</pre>
-                <pre><strong>Length:</strong> ${decodedText.length} characters</pre>
+                <pre><strong>Scanned Data:</strong> ${scannedData}</pre>
+                <pre><strong>Type:</strong> ${typeof scannedData}</pre>
+                <pre><strong>Length:</strong> ${scannedData.length} characters</pre>
                 <pre><strong>Is URL:</strong> ${isUrl ? 'Yes ✓' : 'No ✗'}</pre>
-                <pre><strong>Is Number:</strong> ${isNumber ? 'Yes ✓' : 'No ✗'}</pre>
+                <pre><strong>Converted To:</strong> ${convertedUrl.substring(0, 60)}...</pre>
             `;
         }
 
-        function convertToUrl(scannedData) {
-            // If conversion is disabled, return as-is
-            if (!CONVERT_TO_URL) {
-                return scannedData;
-            }
-
-            // If it's already a URL, return as-is
-            if (scannedData.startsWith('http://') || scannedData.startsWith('https://')) {
-                return scannedData;
+        function convertToGoogleDriveUrl(fileId) {
+            // Remove any whitespace
+            fileId = fileId.trim();
+            
+            // If it's already a full URL, return as-is
+            if (fileId.startsWith('http://') || fileId.startsWith('https://')) {
+                return fileId;
             }
             
-            // Convert Google Drive file ID to full URL
-            return `https://drive.google.com/file/d/${scannedData}/view?usp=drive_link`;
+            // Convert file ID to full Google Drive URL
+            return `https://drive.google.com/file/d/${fileId}/view?usp=drive_link`;
         }
         
         async function onScanSuccess(decodedText, decodedResult) {
             if (isProcessing) return;
             isProcessing = true;
             
+            // Convert to Google Drive URL
+            const fullUrl = convertToGoogleDriveUrl(decodedText);
+            
             // DEBUG: Log to console
             console.log('=== QR CODE SCANNED ===');
-            console.log('Raw data:', decodedText);
-            console.log('Type:', typeof decodedText);
-            console.log('Length:', decodedText.length);
-            console.log('Is URL:', decodedText.startsWith('http'));
+            console.log('Scanned data:', decodedText);
+            console.log('Converted to:', fullUrl);
+            console.log('Sending to sheet:', fullUrl);
             console.log('=====================');
             
             // Update debug display
-            updateDebugInfo(decodedText);
+            updateDebugInfo(decodedText, fullUrl);
             
             scanCount++;
             updateStats();
             
             showStatus('Processing scan...', 'info');
-            lastScanEl.textContent = `Last scan: ${decodedText.substring(0, 50)}${decodedText.length > 50 ? '...' : ''}`;
-            
-            // Convert to URL if needed
-            const urlToSend = convertToUrl(decodedText);
-            
-            // Show what we're sending
-            console.log('Sending to sheet:', urlToSend);
+            lastScanEl.textContent = `Last scan: ${decodedText.substring(0, 30)}...`;
             
             try {
-                const response = await fetch(`${SCRIPT_URL}?action=recordSale&url=${encodeURIComponent(urlToSend)}`);
+                const response = await fetch(`${SCRIPT_URL}?action=recordSale&url=${encodeURIComponent(fullUrl)}`);
                 const result = await response.json();
+                
+                console.log('Server response:', result);
                 
                 if (result.status === 'success') {
                     successCount++;
